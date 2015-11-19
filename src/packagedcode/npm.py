@@ -101,6 +101,12 @@ class NpmPackage(Package):
         package['vcs_repository'] = self.vcs_repository
         return package
 
+    def as_dict(self, simple=True):
+        if simple:
+            return super(NpmPackage, self)
+        else:
+            return self.get_info()
+
 
 def parse(location):
     """
@@ -166,7 +172,7 @@ def parse(location):
                 func(value, package)
 
     package.download_urls.append(public_download_url(package.name, package.version))
-    package.metafile_locations.append(location)
+    print(package.as_dict(simple=False))
     return package
 
 

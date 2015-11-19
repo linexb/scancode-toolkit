@@ -136,7 +136,16 @@ def get_package_infos(location):
     """
     from packagedcode.recognize import recognize_packaged_archives
     package = recognize_packaged_archives(location)
-    if not package:
-        return []
-    return [package.as_dict(simple=True)]
+    return package and [package.as_dict(simple=True)] or []
 
+
+
+
+def get_package_details(location):
+    """
+    Return a list of dictionaries of detailed package information
+    collected from the location or an empty list.
+    """
+    from packagedcode.recognize import recognize_package_manifest
+    package = recognize_package_manifest(location)
+    return package and [package.as_dict(simple=False)] or []

@@ -49,6 +49,7 @@ from scancode.api import get_copyrights
 from scancode.api import get_licenses
 from scancode.api import get_file_infos
 from scancode.api import get_package_infos
+from scancode.api import get_package_details
 
 
 info_text = '''
@@ -216,6 +217,7 @@ formats = ['json', 'html', 'html-app']
 @click.option('-c', '--copyright', is_flag=True, default=False, help='Scan <input> for copyrights. [default]')
 @click.option('-l', '--license', is_flag=True, default=False, help='Scan <input> for licenses. [default]')
 @click.option('-p', '--package', is_flag=True, default=False, help='Scan <input> for packages. [default]')
+@click.option('--package_details', is_flag=True, default=False, help='Scan <input> for packages details.')
 @click.option('-i', '--info', is_flag=True, default=False, help='Scan <input> for files information.')
 
 @click.option('-f', '--format', is_flag=False, default='json', show_default=True, metavar='<style>', type=click.Choice(formats),
@@ -228,25 +230,25 @@ formats = ['json', 'html', 'html-app']
 @click.option('--about', is_flag=True, is_eager=True, callback=print_about, help='Show information about ScanCode and licensing and exit.')
 @click.option('--version', is_flag=True, is_eager=True, callback=print_version, help='Show the version and exit.')
 
-def scancode(ctx, input, output_file, copyright, license, package,  # @ReservedAssignment
+def scancode(ctx, input, output_file, copyright, license, package, package_details,  # @ReservedAssignment
              info, format, verbose, quiet, *args, **kwargs):  # @ReservedAssignment
     """scan the <input> file or directory for origin and license and save results to the <output_file>.
 
     The scan results are printed on terminal if <output_file> is not provided.
     """
-    possible_scans = [copyright, license, package, info]
+    possible_scans = [copyright, license, package, info, package_details]
     # Default scan when no options is provided
     if not any(possible_scans):
         copyright = True  # @ReservedAssignment
         license = True  # @ReservedAssignment
         package = True
 
-    results = scan(input, copyright, license, package, info, verbose, quiet)
+    results = scan(input, copyright, license, package, package_details, info, verbose, quiet)
     save_results(results, format, input, output_file)
 
 
-def scan(input_path, copyright=True, license=True, package=True,  # @ReservedAssignment
-         info=True, verbose=False, quiet=False):  # @ReservedAssignment
+def scan(input_path, copyright=True, license=True, package=True, # @ReservedAssignment 
+         package_details=False, info=True, verbose=False, quiet=False):
     """
     Do the scans proper, return results.
     """
@@ -259,6 +261,7 @@ def scan(input_path, copyright=True, license=True, package=True,  # @ReservedAss
         'copyrights': copyright and get_copyrights,
         'licenses': license and get_licenses,
         'packages': package and get_package_infos,
+        'package_details': package_details and get_package_details,
         'infos': info and get_file_infos,
     }
 

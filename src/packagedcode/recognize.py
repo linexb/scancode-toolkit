@@ -31,6 +31,7 @@ import typecode.contenttype
 
 from packagedcode import models
 from packagedcode import PACKAGE_TYPES
+from packagedcode import npm
 
 
 logger = logging.getLogger(__name__)
@@ -74,3 +75,18 @@ def recognize_packaged_archives(location):
         if type_matched and mime_matched and extension_matched:
             # we return the first match in the order of PACKAGE_TYPES
             return package(location=location)
+
+
+recognizers = [
+    (npm.is_package_json, npm.parse), 
+]
+
+
+def recognize_package_manifest(location):
+    """
+    Return a Package object if one was recognized or None for this `location`.
+    """
+    for recon, package_object in recognizers:
+        if recon(location):
+            print (location)
+            return package_object(location=location)
