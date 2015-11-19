@@ -88,5 +88,4 @@ def recognize_package_manifest(location):
     """
     for recon, package_object in recognizers:
         if recon(location):
-            print (location)
             return package_object(location=location)
