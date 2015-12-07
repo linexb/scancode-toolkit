@@ -287,13 +287,8 @@ def repository_mapper(repo, package):
       , "url" : "https://v8.googlecode.com/svn/trunk/"
       }
     """
-    if not repo:
-        return
-    if isinstance(repo, basestring):
-        package.vcs_repository = parse_repo_url(repo)
-    elif isinstance(repo, dict):
-        package.vcs_tool = repo.get('type') or 'git'
-        package.vcs_repository = parse_repo_url(repo.get('url'))
+    package.vcs_tool = repo.get('type')
+    package.vcs_repository = parse_repo_url(repo.get('url'))
     return package
 
 
