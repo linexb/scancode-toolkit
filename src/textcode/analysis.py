@@ -51,7 +51,7 @@ NO_GAP = 0
 # Default template if no explicit gap is specified in a template
 DEFAULT_GAP = 5
 
-DEFAULT_NGRAM_LEN = 4
+DEFAULT_NGRAM_LEN = 3
 
 
 @total_ordering
@@ -72,13 +72,12 @@ class Token(object):
     """
     __slots__ = ('start', 'start_line', 'start_char',
                  'end_line', 'end_char', 'end',
-                 'gap', 'value', 'length')
+                 'gap', 'value',)
 
     def __init__(self, start=0,
                  start_line=0, start_char=0, end_line=0, end_char=0,
                  end=0,
-                 gap=NO_GAP,
-                 value=None, length=0):
+                 gap=NO_GAP, value=None):
         self.start = start
         self.start_line = start_line
         self.start_char = start_char
@@ -87,15 +86,13 @@ class Token(object):
         self.end = end or start
         self.gap = gap
         self.value = value
-        self.length = length or (value and len(value.split()))
 
     def __repr__(self):
         return ('Token('
                 'start=%(start)r, start_line=%(start_line)r, '
                 'start_char=%(start_char)r, end_line=%(end_line)r, '
                 'end_char=%(end_char)r, end=%(end)r, '
-                'gap=%(gap)r, value=%(value)r, '
-                'length=%(length)r'
+                'gap=%(gap)r, value=%(value)r'
                 ')' % self._asdict())
 #
     def _asdict(self):
@@ -107,49 +104,27 @@ class Token(object):
             'end_char':self.end_char,
             'end': self.end,
             'gap': self.gap,
-            'value': self.value,
-            'length': self.length
+            'value': self.value
         }
 
     def _astuple(self):
         return (self.start, self.start_line, self.start_char,
                 self.end_line, self.end_char, self.end,
-                self.gap, self.value, self.length)
+                self.gap, self.value)
 
-    def dumps(self):
-        """
-        Return a UTF-8 encoded byte string serializing the Token.
-        """
-        numerics = [self.start, self.start_line, self.start_char,
-                    self.end_line, self.end_char, self.end,
-                    self.gap, self.length]
-        dumped = u','.join([str(i) for i in numerics] + [self.value or u'']) + u'\n'
-        return dumped
-
-    @staticmethod
-    def loads(s):
-        """
-        Return a Token loaded from a unicode serialized string.
-        """
-        elements = s.split(u',')
-        numerics = [int(i) for i in elements[:-1]]
-        value = elements[-1]
-        length = numerics[-1]
-        numerics = numerics[:-1]
-        return Token(*numerics, value=value, length=length)
+    def _asindextuple(self):
+        return self.start, self.end, self.gap, self.value
 
     def __eq__(self, other):
         return (isinstance(other, Token)
-            and self.start == other.start
-            and self.start_line == other.start_line
-            and self.start_char == other.start_char
-            and self.end_line == other.end_line
-            and self.end_char == other.end_char
-            and self.end == other.end
-            and self.gap == other.gap
-            and self.value == other.value
-            and self.length == other.length
-        )
+                and self.start == other.start
+                and self.start_line == other.start_line
+                and self.start_char == other.start_char
+                and self.end_line == other.end_line
+                and self.end_char == other.end_char
+                and self.end == other.end
+                and self.gap == other.gap
+                and self.value == other.value)
 
     def __lt__(self, other):
         return isinstance(other, Token) and self.start < other.start
@@ -188,7 +163,8 @@ def unigram_splitter(lines, splitter=None, lowercase=True):
             assert isinstance(word.group(), unicode)
             yield Token(start_line=line_num, start_char=word.start(),
                         end_char=word.end(), end_line=line_num,
-                        value=word.group(), length=1)
+                        value=word.group())
+
 
 
 template_start = u'{{'
@@ -274,6 +250,7 @@ def template_processor(unigrams):
     # yield the last token
     if previous:
         yield previous
+
 
 
 def position_processor(tokens):
@@ -365,8 +342,8 @@ def tokens_ngram_processor(tokens, ngram_len):
 
 def ngram_to_token(token_tuples):
     """
-    Given an `iterable` of ngram Tokens tuples, return an iterable of merged
-    Tokens, merging the tuple's Tokens in one Token. The resulting Token value
+    Return an iterable of merged Tokens, merging the tuple's Tokens in one
+    Token, given an `iterable` of ngram Tokens tuples. The resulting Token value
     is always a tuple of values (and possibly a tuple with a single value for
     unigrams).
     """
@@ -378,10 +355,9 @@ def ngram_to_token(token_tuples):
         token.end = last.end
         # keep last gap: intra-ngram gap has no meaning
         token.gap = last.gap
-        values = [t.value for t in ngram]
-        token.value = u' '.join(values)
-        token.length = len(values)
+        token.value = tuple([t.value for t in ngram])
         yield token
+
 
 #
 # MULTIGRAMS, used only in queries
@@ -478,17 +454,14 @@ def merge_tokens(tokens):
     if first is last:
         # unigram
         # FIXME: should use plain strings rather than tuples
-        values = first.value
-        length = 1
+        values = (first.value,)
     else:
-        values = [t.value for t in tokens]
-        length = len(values)
-        values = u' '.join(values)
+        values = tuple([t.value for t in tokens])
 
     return Token(start=first.start, end=last.end,
                  start_line=first.start_line, start_char=first.start_char,
                  end_line=last.end_line, end_char=last.end_char,
-                 value=values, length=length)
+                 value=values)
 
 
 def doc_subset(lines, position):
