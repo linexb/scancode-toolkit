@@ -14,7 +14,7 @@ licenses:
     - lgpl-2.1
     - libpng
     - mit-license-1998
-    - isc
+    - mit-old-style-legal-2
     - mpl-1.1
     - openldap-2.8
     - openssl-ssleay
