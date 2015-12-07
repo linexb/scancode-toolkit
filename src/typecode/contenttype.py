@@ -129,8 +129,6 @@ class Type(object):
         self.is_link = filetype.is_link(location)
         self.is_broken_link = filetype.is_broken_link(location)
 
-        # FIXME: the way the True and False values are checked in properties is verbose and contrived at best
-        # and is due to use None/True/False as different values
         # computed on demand
         self._size = None
         self._link_target = None
@@ -360,14 +358,6 @@ class Type(object):
             return False
 
     @property
-    def programming_language(self):
-        """
-        Return the programming language if the file is source code or an empty
-        string.
-        """
-        return self.is_source and self.filetype_pygment or ''
-
-    @property
     def is_c_source(self):
         ext = fileutils.file_extension(self.location)
         if self.is_text is True and ext.lower() in C_EXTENSIONS:
@@ -425,10 +415,7 @@ class Type(object):
         """
         if self.is_file is True:
             name = fileutils.file_name(self.location)
-            if (fnmatch.fnmatch(name, '*.java')
-                or fnmatch.fnmatch(name, '*.aj')
-                or fnmatch.fnmatch(name, '*.ajt')
-                ):
+            if fnmatch.fnmatch(name, '*?.java'):
                 return True
             else:
                 return False
@@ -453,7 +440,8 @@ class Type(object):
 def get_pygments_lexer(location):
     """
     Given an input file location, return a Pygments lexer appropriate for
-    lexing this file content.
+    lexing this file content. Attempt to read the file if no content is
+    provided.
     """
     try:
         T = _registry[location]
@@ -464,6 +452,7 @@ def get_pygments_lexer(location):
             return
     try:
         # FIXME: Latest Pygments versions should work fine
+        # Temporary fix for #2574:
         # win32_bug_on_s_files = dejacode.on_windows and location.endswith('.s')
 
         # NOTE: we use only the location for its file name here, we could use
