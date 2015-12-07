@@ -27,7 +27,7 @@ from __future__ import absolute_import, division, print_function
 
 from functools import partial
 import locale
-import logging
+import posixpath
 import os
 
 import ctypes
@@ -37,19 +37,20 @@ from ctypes import c_size_t, c_ssize_t
 from ctypes import c_void_p
 from ctypes import POINTER
 from ctypes import create_string_buffer
-
-from commoncode import command
-from commoncode import paths
-from commoncode import system
-from commoncode import fileutils
+import logging
 
 import extractcode
+from commoncode import command
+from commoncode import system
+from commoncode import fileutils
 from extractcode import ExtractError
 from extractcode import ExtractErrorPasswordProtected
 
 
-logger = logging.getLogger(__name__)
-DEBUG = False
+from commoncode import paths
+
+
+logger = logging.getLogger('extractcode')
 # logging.basicConfig(level=logging.DEBUG)
 
 
@@ -58,6 +59,11 @@ libarchive2 is a minimal and specialized wrapper around a vendored libarchive
 archive extraction library. It is inspired from several libarchive bindings
 such as libarchive_c and python-libarchive for Python and others for Ruby.
 """
+
+DEBUG = False
+
+# this is important to avoid locale-specific errors on various OS
+locale.setlocale(locale.LC_ALL, '')
 
 
 
@@ -70,9 +76,9 @@ def load_lib():
     libarchive = os.path.join(lib_dir, 'libarchive' + system.lib_ext)
 
     # add lib path to the front of the PATH env var
-    if lib_dir not in os.environ['PATH'].split(os.pathsep):
-        new_path = os.pathsep.join([lib_dir, os.environ['PATH']])
-        os.environ['PATH'] = new_path
+    new_path = os.pathsep.join([lib_dir, os.environ['PATH']])
+    os.environ['PATH'] = new_path
+#    os.environ['TZ'] = 'UTC'
 
     if os.path.exists(libarchive):
         lib = ctypes.CDLL(libarchive)
@@ -80,18 +86,15 @@ def load_lib():
             return lib
     raise ImportError('Failed to load libarchive: %(libarchive)r' % locals())
 
-# NOTE: this is important to avoid timezone differences
-os.environ['TZ'] = 'UTC'
-# NOTE: this is important to avoid locale-specific errors on various OS
-locale.setlocale(locale.LC_ALL, '')
 
+os.environ['TZ'] = 'UTC'
 libarchive = load_lib()
 
 
 def extract(location, target_dir):
     """
-    Extract files from a libarchive-supported archive file at `location` in the
-    `target_dir`.
+    Extract files from a libarchive-supported archive file at location in the
+    target_dir.
     Return a list of warning messages if any.
     Raise Exceptions on errors.
     """
@@ -106,7 +109,7 @@ def extract(location, target_dir):
             continue
         _target_path = entry.write(abs_target_dir, transform_path=paths.resolve)
         if entry.warnings:
-            msgs = [w.strip('"\' ') for w in entry.warnings if w and w.strip('"\' ')]
+            msgs = [w.strip('"\' ') for w in entry.warnings if w.strip('"\' ')]
             msgs = msgs or ['No message provided']
             formatted = entry.path + ': ' + '\n'.join(msgs)
             if formatted not in warnings:
@@ -116,7 +119,7 @@ def extract(location, target_dir):
 
 def list_entries(location):
     """
-    Return a list entries for archive file at `location`.
+    Return a list entries of archive file at `location`.
     """
     assert location
     abs_location = os.path.abspath(os.path.expanduser(location))
@@ -131,11 +134,7 @@ def list_entries(location):
 class Archive(object):
     """
     Represent an iterable archive containing Entries.
-
-    This is a context manager that can we used this way:
-        with Archive(location='/some/path') as arch:
-            for entry in arch:
-                do something with entry
+    This is a context manager.
     """
     def __init__(self, location, uncompress=True, extract=True,
                  block_size=10240):
@@ -149,26 +148,25 @@ class Archive(object):
         If `uncompress` is True, the archive will be uncompressed first (e.g.
         a tar.gz will be ungzipped).
 
-        If `extract` is True, the archive will be extracted (e.g. a cpio
+        If `extract` is True, the archive will be extracted first (e.g. a cpio
         will be extracted).
 
         If both are are True, will be uncompressed then extracted (e.g. a
         tar.xz will be unxz'ed then untarred).
         """
-        msg = 'At least one of `uncompress` or `extract` flag is required.'
-        assert uncompress or extract, msg
+        assert uncompress or extract, (
+            'At least one of uncompress and extract flag is required.')
         self.location = location
         self.uncompress = uncompress
         self.extract = extract
         self.block_size = block_size
-        # pointer to the libarchive structure
+        # pointer the an archive structure
         self.archive_struct = None
 
     def open(self):
         """
         Open the archive for reading.
         You must call close() when done to free up resources and avoid leaks.
-        Or use instead the Archive class as a context manager with `with`.
         """
         # first close any existing opened struct for this file
         self.close()
@@ -220,10 +218,10 @@ class Archive(object):
 class Entry(object):
     """
     Represent an Archive Entry, typically a file or a directory. The attribute
-    names are loosely based on the stdlib tarfile module Tarfile attributes.Some
-    attributes are not handled on purpose because they are never used: things
-    such as modes/perms/users/groups are never restored by design to ensure
-    extracted files are readable/writable and owned by the extracting user.
+    names are loosely based on the stdlib tarfile module. Some attributes are
+    not handled on purpose because they are never used: things such as
+    modes/perms/users/groups are never restored by design to ensure extracted
+    files are read/writable and owned by the extracting user.
     """
     def __init__(self, archive, entry_struct):
         self.archive = archive
@@ -243,7 +241,7 @@ class Entry(object):
         # sec since epoch
         self.time = entry_time(self.entry_struct) or 0
 
-        # all paths are byte strings not unicode
+        # all paths are byte strings
         self.path = self._path_bytes(entry_path, entry_path_w)
         self.issym = self.filetype & AE_IFMT == AE_IFLNK
         # FIXME: could there be cases with link path and symlink is False?
@@ -258,8 +256,8 @@ class Entry(object):
     def _path_bytes(self, func, func_w):
         """
         Call path function `func` then call `func_w` if `func` does not provide
-        a path. Return a path as a byte string converted to UTF-8-encoded bytes
-        if this is unicode.
+        a path. Return a path converted to UTF-8-encoded bytes if this is
+        unicode.
         """
         path = func(self.entry_struct)
         if not path:
@@ -273,9 +271,8 @@ class Entry(object):
         Write entry to a file or directory saved relatively to the base_dir.
         Return a tuple (path, warnings), with the path where the file or
         directory was written or None if nothing was written to disk.
-        `transform_path` is a callable taking a path and returning a transformed
-        path. such as resolving relative paths, transliterating non portable
-        characters or other transformations. The default is a no-op lambda.
+        `transform_path` is a callable taking a path and return a transformed
+        path such as resolving relative paths or else.
         """
         if not self.archive.archive_struct:
             raise ArchiveErrorIllegalOperationOnClosedArchive()
@@ -290,7 +287,7 @@ class Entry(object):
             fileutils.create_dir(dir_path)
             return dir_path
 
-        # here isfile=True
+        # isfile
         try:
             # create parent directories if needed
             # TODO: also rename directories, segment by segment?
@@ -321,18 +318,19 @@ class Entry(object):
 
     def __repr__(self):
         return ('Entry('
-                      'path=%(path)r,'
-                      'size=%(size)r,'
-                      'isfile=%(isfile)r,'
-                      'isdir=%(isdir)r,'
-                      'islnk=%(islnk)r,'
-                      'issym=%(issym)r,'
-                      'isspecial=%(isspecial)r,'
+                    'path=%(path)r,'
+                    'size=%(size)r,'
+                    'isfile=%(isfile)r,'
+                    'isdir=%(isdir)r,'
+                    'islnk=%(islnk)r,'
+                    'issym=%(issym)r,'
+                    'isspecial=%(isspecial)r,'
                 ')') % self.__dict__
 
 
 class ArchiveException(ExtractError):
-    def __init__(self, rc=None, archive_struct=None, archive_func=None, root_ex=None):
+    def __init__(self, rc=None, archive_struct=None, archive_func=None,
+                 root_ex=None):
         self.root_ex = root_ex
         if root_ex and isinstance(root_ex, ArchiveException):
             self.rc = root_ex.rc
@@ -341,9 +339,9 @@ class ArchiveException(ExtractError):
             self.func = root_ex.func
         else:
             self.rc = rc
-            self.errno = archive_struct and errno(archive_struct) or None
-            self.msg = archive_struct and err_msg(archive_struct).strip('\'" ') or None
-            self.func = archive_func and archive_func.__name__ or None
+            self.errno = errno(archive_struct) if archive_struct else None
+            self.msg = err_msg(archive_struct).strip('\'" ') if archive_struct else None
+            self.func = archive_func.__name__ if archive_func else None
 
     def __str__(self):
         msg = '%(msg)r'
@@ -375,9 +373,9 @@ class ArchiveErrorIllegalOperationOnClosedArchive(ArchiveException):
     pass
 
 
-##################################
-# C ctypes interface to libarchive
-##################################
+####################################
+# C interface to libarchive and more
+####################################
 
 def errcheck(rc, archive_func, args, null=False):
     """
@@ -386,7 +384,7 @@ def errcheck(rc, archive_func, args, null=False):
     """
     if null:
         if rc is None:
-            archive_struct = args and len(args) > 1 and args[0] or None
+            archive_struct = args[0] if len(args) > 1 else None
             raise ArchiveError(rc, archive_struct, archive_func)
         else:
             return rc
@@ -440,7 +438,6 @@ AE_IFIFO = 0o0010000
 """
 To read an archive, you must first obtain an initialized struct archive object
 from archive_read_new().
-
 Allocates and initializes a struct archive object suitable for reading from an
 archive. NULL is returned on error.
 """
@@ -469,8 +466,8 @@ use_all_formats.errcheck = errcheck
 
 """
 Given a struct archive object, you can enable support for formats and filters.
-
 Enables support for the "raw" format.
+
 The "raw" format handler allows libarchive to be used to read arbitrary
 data. It treats any data stream as an archive with a single entry. The
 pathname of this entry is "data ;" all other entry fields are unset. This is
@@ -486,8 +483,8 @@ use_raw_formats.errcheck = errcheck
 
 """
 Given a struct archive object, you can enable support for formats and filters.
-
 Enables all available decompression filters.
+
 Return ARCHIVE_OK if the compression is fully supported, ARCHIVE_WARN if the
 compression is supported only through an external program.
 Detailed error codes and textual descriptions are available from the
@@ -622,10 +619,7 @@ free_entry.argtypes = [c_void_p]
 free_entry.restype = None
 
 
-#
 # Entry attributes: path, type, size, etc. are collected with these functions:
-##############################
-
 """
 The functions archive_entry_filetype() and archive_entry_set_filetype() get
 respectively set the filetype. The file type is one of the following
@@ -653,7 +647,6 @@ entry_type.restype = c_int
 """
 This function retrieves the mtime field in an archive_entry. (modification
 time).
-
 The timestamps are truncated automatically depending on the archive format
 (for archiving) or the filesystem capabilities (for restoring).
 All timestamp fields are optional. The XXX_unset() functions can be used to
@@ -683,20 +676,17 @@ entry_path.restype = c_char_p
 """
 String data can be set or accessed as wide character strings or normal char
 strings. The functions that use wide character strings are suffixed with _w.
-
 Note that these are different representations of the same data: For example,
 if you store a narrow string and read the corresponding wide string, the
-object will transparently convert formats using the current locale
-
-Similarly, if you store a wide string and then store a narrow string for the
-same data, the previously-set wide string will be discarded in favor of the new
-data.
+object will transparently convert formats using the current locale. Similarly,
+if you store a wide string and then store a narrow string for the same data,
+the previously-set wide string will be discarded in favor of the new data.
 """
 # const wchar_t * archive_entry_pathname_w(struct archive_entry *a);
 entry_path_w = libarchive.archive_entry_pathname_w
 entry_path_w.argtypes = [c_void_p]
 entry_path_w.restype = c_wchar_p
-# TODO: check for nulls?
+# TODO: check for nulls
 # entry_path_w.errcheck = None
 
 
