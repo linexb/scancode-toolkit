@@ -34,6 +34,11 @@ if "%SCANCODE_CLI_ARGS%"==" " (
     goto configure
 )
 
+if "%SCANCODE_CLI_ARGS%"=="  --init" (
+    set SCANCODE_CLI_ARGS="%CONF_INIT%"
+    goto configure
+)
+
 :configure
 if not exist "c:\python27\python.exe" (
     echo(
