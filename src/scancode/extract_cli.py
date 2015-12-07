@@ -92,14 +92,19 @@ def extractcode(ctx, input, verbose, *args, **kwargs):  # @ReservedAssignment
     Extraction is done in-place in a directory named '-extract' side-by-side with an archive.
     """
 
-    original_input = fileutils.as_posixpath(input)
-    abs_input = fileutils.as_posixpath(os.path.abspath(os.path.expanduser(input)))
+    abs_input = as_posixpath(os.path.abspath(os.path.expanduser(input)))
+    rc = extract_with_progress(abs_input, verbose)
+    ctx.exit(rc)
 
-    # note: we inline functions so they can close on local variables
+
+def extract_with_progress(input, verbose=False):  # @ReservedAssignment
+    """
+    Extract archives and display progress.
+    """
+    # note: we use inner functions so they can close on local variables
 
     def extract_start():
         return style('Extracting archives...', fg='green')
-
 
     def extract_event(item):
         """
@@ -110,7 +115,7 @@ def extractcode(ctx, input, verbose, *args, **kwargs):  # @ReservedAssignment
         if verbose:
             if item.done:
                 return ''
-            line = utils.get_relative_path(original_input, abs_input, as_posixpath(item.source)) or ''
+            line = as_posixpath(item.source) or ''
         else:
             line = fileutils.file_name(item.source) or ''
         return 'Extracting: %(line)s' % locals()
@@ -127,7 +132,6 @@ def extractcode(ctx, input, verbose, *args, **kwargs):  # @ReservedAssignment
             has_errors = has_errors or bool(xev.errors)
             has_warnings = has_warnings or bool(xev.warnings)
             source = as_posixpath(xev.source)
-            source = utils.get_relative_path(original_input, abs_input, source)
             for e in xev.errors:
                 summary.append(style('ERROR extracting: %(source)s: %(e)r' % locals(), fg='red', reset=False))
             for warn in xev.warnings:
@@ -146,7 +150,7 @@ def extractcode(ctx, input, verbose, *args, **kwargs):  # @ReservedAssignment
     extract_results = []
     has_extract_errors = False
 
-    with utils.progressmanager(extract_archives(abs_input),
+    with utils.progressmanager(extract_archives(input),
                                item_show_func=extract_event,
                                start_show_func=extract_start,
                                finish_show_func=extract_end,
@@ -156,6 +160,4 @@ def extractcode(ctx, input, verbose, *args, **kwargs):  # @ReservedAssignment
             if xev.done and (xev.warnings or xev.errors):
                 has_extract_errors = has_extract_errors or xev.errors
                 extract_results.append(xev)
-
-    rc = 1 if has_extract_errors else 0
-    ctx.exit(rc)
+    return 1 if has_extract_errors else 0
