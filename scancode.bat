@@ -6,6 +6,8 @@
 @rem  A minimal shell wrapper to the CLI entry point
 
 set SCANCODE_ROOT_DIR=%~dp0
+cd %SCANCODE_ROOT_DIR%
+
 set SCANCODE_CMD_LINE_ARGS= 
 set SCANCODE_CONFIGURED_PYTHON=%SCANCODE_ROOT_DIR%\bin\python.exe
 
@@ -23,7 +25,7 @@ if not exist %SCANCODE_CONFIGURED_PYTHON% goto configure
 goto scancode
 
 :configure
- echo * Configuring ScanCode for first use...
+ echo * Configuring ScanCode ...
  set CONFIGURE_QUIET=1
  call %SCANCODE_ROOT_DIR%\configure etc/conf
  if %errorlevel% neq 0 (
