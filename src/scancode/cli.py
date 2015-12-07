@@ -233,28 +233,19 @@ def scancode(ctx, input, output_file, copyright, license, package,  # @ReservedA
 
     The scan results are printed on terminal if <output_file> is not provided.
     """
-    results = do_scan(input, copyright, license, package, info, format, verbose, quiet=False)
-    save_results(results, format, input, output_file)
-
-
-def do_scan(input_path, copyright, license, package,  # @ReservedAssignment
-            info, format, verbose, quiet):  # @ReservedAssignment
-    """
-    Do the scans proper, return results.
-    """
     # save paths to report paths relative to the original input
-    original_input = fileutils.as_posixpath(input_path)
-    abs_input = fileutils.as_posixpath(os.path.abspath(os.path.expanduser(input_path)))
+    original_input = fileutils.as_posixpath(input)
+    abs_input = fileutils.as_posixpath(os.path.abspath(os.path.expanduser(input)))
+    scans = [copyright, license, package, info]
 
-    possible_scans = [copyright, license, package, info]
     # Default scan when no options is provided
-    if not any(possible_scans):
+    if not any(scans):
         copyright = True  # @ReservedAssignment
         license = True  # @ReservedAssignment
         package = True
 
     # note: "flag and function" expressions return the function if flag is True
-    scanners = {
+    scans = {
         'copyrights': copyright and get_copyrights,
         'licenses': license and get_licenses,
         'packages': package and get_package_infos,
@@ -298,7 +289,6 @@ def do_scan(input_path, copyright, license, package,  # @ReservedAssignment
                                finish_show_func=scan_end,
                                verbose=verbose,
                                show_pos=True,
-                               quiet=quiet
                                ) as progressive_resources:
 
         for resource in progressive_resources:
@@ -306,13 +296,13 @@ def do_scan(input_path, copyright, license, package,  # @ReservedAssignment
             # keep the location as relative to the original input
             relative_path = utils.get_relative_path(original_input, abs_input, res)
             scan_result = OrderedDict(location=relative_path)
-            scan_result.update(scan_one(res, scanners))
+            scan_result.update(scan_one(res, scans))
             results.append(scan_result)
 
     # TODO: eventually merge scans for the same resource location...
     # TODO: fix absolute paths as relative to original input argument...
 
-    return results
+    save_results(results, format, input, output_file)
 
 
 def scan_one(input_file, scans):
