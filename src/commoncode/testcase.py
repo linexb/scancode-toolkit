@@ -114,10 +114,11 @@ def get_test_loc(test_path, test_data_dir):
     return test_loc
 
 
-class FileBasedTesting(EnhancedAssertions):
+class FileDrivenTesting(object):
     """
     Add support for handling test files and directories, including managing
     temporary test resources and doing file-based assertions.
+    This can be used as a standalone object if needed.
     """
     test_data_dir = None
 
@@ -200,39 +201,6 @@ class FileBasedTesting(EnhancedAssertions):
             map(os.remove, [os.path.join(root, file_loc)
                             for file_loc in files if file_loc.endswith('~')])
 
-    def as_line_list(self, list_or_file, sort=False, skip_firstline=False):
-        """
-        Given a list of file path as an input, return a list of text lines
-        suitable for comparison. Optionally skip the first line (for CSV
-        comparisons) and sort the list.
-        """
-        L = []
-        if isinstance(list_or_file, basestring):
-            L = open(list_or_file, 'rb').readlines()
-        elif isinstance(list_or_file, (list, tuple,)):
-            L = list_or_file
-        else:
-            raise Exception('unsupported object type: '
-                            'must be a list, tuple or file name')
-
-        if skip_firstline and L:
-            L = L[1:]
-        if sort:
-            L = sorted(L)
-        return L
-
-    def failUnlessFilesLinesEqual(self, expected_list_or_file,
-                                  result_list_or_file,
-                                  msg=None, sort=False, skip_firstline=False):
-        """
-        Check equality of two lists of lines or files lines content.
-        """
-        expected = self.as_line_list(expected_list_or_file, sort,
-                                     skip_firstline)
-        result = self.as_line_list(result_list_or_file, sort, skip_firstline)
-        self.failUnlessEqual(expected, result, msg)
-
-    assertLinesEqual = failUnlessFilesLinesEqual
 
     def __extract(self, test_path, extract_func=None, verbatim=False):
         """
@@ -269,6 +237,43 @@ def extract_tar(location, target_dir, verbatim=False):
                     tarinfo.mode = 0700
                 to_extract.append(tarinfo)
         tar.extractall(target_dir, members=to_extract)
+
+
+class FileBasedTesting(EnhancedAssertions, FileDrivenTesting):
+
+    def as_line_list(self, list_or_file, sort=False, skip_firstline=False):
+        """
+        Given a list of file path as an input, return a list of text lines
+        suitable for comparison. Optionally skip the first line (for CSV
+        comparisons) and sort the list.
+        """
+        L = []
+        if isinstance(list_or_file, basestring):
+            L = open(list_or_file, 'rb').readlines()
+        elif isinstance(list_or_file, (list, tuple,)):
+            L = list_or_file
+        else:
+            raise Exception('unsupported object type: '
+                            'must be a list, tuple or file name')
+
+        if skip_firstline and L:
+            L = L[1:]
+        if sort:
+            L = sorted(L)
+        return L
+
+    def failUnlessFilesLinesEqual(self, expected_list_or_file,
+                                  result_list_or_file,
+                                  msg=None, sort=False, skip_firstline=False):
+        """
+        Check equality of two lists of lines or files lines content.
+        """
+        expected = self.as_line_list(expected_list_or_file, sort,
+                                     skip_firstline)
+        result = self.as_line_list(result_list_or_file, sort, skip_firstline)
+        self.failUnlessEqual(expected, result, msg)
+
+    assertLinesEqual = failUnlessFilesLinesEqual
 
 
 def tar_can_extract(tarinfo, verbatim):

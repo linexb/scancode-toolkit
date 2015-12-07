@@ -2,6 +2,24 @@
 Changelog
 =========
 
+next
+------------------
+ * Separated JSON data into a separate file for the html app.
+   https://github.com/nexB/scancode-toolkit/issues/38
+ * Added support for scanning package and file information.
+ * Added file and package information to the html-app and html output.
+   https://github.com/nexB/scancode-toolkit/issues/76
+ * improved CSS for html format output
+   https://github.com/nexB/scancode-toolkit/issues/12
+ * New and improved licenses rules and licenses.
+ * Added support for nuget .nupkg as archives.
+ * Created new extractcode standlone command for
+   https://github.com/nexB/scancode-toolkit/issues/52
+   Extracting archives is no longer part of the scancode command.
+ * Scancode can now be called from anywhere.
+   https://github.com/nexB/scancode-toolkit/issues/55
+ * Various minor improvements for copyright detection.
+
 1.3.1 (2015-07-27)
 ------------------
 

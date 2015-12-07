@@ -1,11 +1,20 @@
-language: python
+language: cpp
 
-python:
-    - "2.7"
+os: 
+  - osx
+  - linux 
+
+env:
+  - TEST_SUITE: src tests/commoncode tests/extractcode tests/textcode tests/typecode tests/scancode
+  - TEST_SUITE: tests/cluecode
+  - TEST_SUITE: tests/licensedcode/test_detect.py tests/licensedcode/test_index.py tests/licensedcode/test_legal.py tests/licensedcode/test_models.py
+  - TEST_SUITE: tests/licensedcode/test_detection_datadriven.py
+  - TEST_SUITE: tests/licensedcode/test_detection_validate.py
+
 
 install:
     - source configure
 
 script:
-    - py.test -n 2 -vs src tests/commoncode tests/extractcode tests/textcode tests/typecode tests/cluecode tests/scancode tests/licensedcode/test_detect.py tests/licensedcode/test_index.py tests/licensedcode/test_legal.py tests/licensedcode/test_models.py
+    - py.test -n 2 -vvs $TEST_SUITE
 

@@ -29,7 +29,7 @@ long_description = '%s\n%s' % (
 
 setup(
     name='scancode-toolkit',
-    version='1.3.1',
+    version='1.4.0',
     license='Apache-2.0 with ScanCode acknowledgment and CC0-1.0 and others',
     description='ScanCode is a tool to scan code for license, copyright and other interesting facts.',
     long_description=long_description,
@@ -56,11 +56,11 @@ setup(
     ],
     install_requires=[
         # cluecode
-        'py2-ipaddress>=2.0',
-        'url>=0.1.4',
+        'py2-ipaddress >= 2.0, <3.0',
+        'url >= 0.1.4',
         'publicsuffix2',
         # TODO: upgrade to nltk==3.0.1
-        'nltk==2.0b4',
+        'nltk >= 2.0b4, <3.0.0',
 
         # extractcode
         'patch >= 1.14.2, < 1.15 ',
@@ -69,30 +69,33 @@ setup(
         'bz2file >= 0.98',
 
         # licensedcode
-        'PyYAML >=3.0, <4.0',
+        'PyYAML >= 3.0, <4.0',
 
         # textcode
-        'Beautifulsoup == 3.2.1',
-        'Beautifulsoup4 == 4.3.2',
+        'Beautifulsoup >= 3.2.0, <4.0.0',
+        'Beautifulsoup4 >= 4.3.0, <5.0.0',
         'html5lib',
         'six',
 
         # typecode and textcode
-        'pygments>=2.0.1',
-        'pdfminer>=20140328',
+        'pygments >= 2.0.0, <3.0.0',
+        'pdfminer >= 20140328',
 
         # typecode
-        'chardet>=2.1.1',
-        'binaryornot>=0.3.0',
+        'chardet >= 2.1.1, <3.0.0',
+        'binaryornot >= 0.4.0',
 
         # scancode and AboutCode
-        'click',
-        'jinja2==2.7.3',
-        'MarkupSafe==0.23',
+        'click >= 4.0.0, < 5.0.0',
+        'jinja2 >= 2.7.0, < 3.0.0',
+        'MarkupSafe >= 0.23',
         'colorama',
 
         # AboutCode
-        'about-code-tool==0.9.0',
+        'about-code-tool >= 0.9.0',
+
+        # packagedcode
+        'requests >= 2.7.0, < 3.0.0',
     ],
 
     extras_require={
@@ -115,6 +118,7 @@ setup(
     entry_points={
         'console_scripts': [
             'scancode = scancode.cli:scancode',
+            'extractcode = scancode.extract_cli:extractcode',
         ],
     },
 )

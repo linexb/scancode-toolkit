@@ -25,15 +25,14 @@
 from __future__ import print_function, absolute_import
 
 from collections import OrderedDict
-from operator import itemgetter
-from os.path import dirname
-from os.path import exists
-from os.path import join
-
-from commoncode import fileutils
 
 
-def extract_archives(location=None, verbose=False):
+"""
+Main scanning functions.
+Note: this API is unstable and still evolving.
+"""
+
+def extract_archives(location, recurse=True):
     """
     Extract recursively any archives found at location and yield an iterable of
     ExtractEvents.
@@ -44,179 +43,100 @@ def extract_archives(location=None, verbose=False):
     from extractcode.extract import extract
     from extractcode import default_kinds
 
-    for xevent in extract(location, kinds=default_kinds, recurse=True):
-        if xevent.done:
-            yield xevent
-        else:
-            if verbose and not xevent.done:
-                yield xevent
+    for xevent in extract(location, kinds=default_kinds, recurse=recurse):
+        yield xevent
 
 
-def get_copyrights(location=None):
+def get_copyrights(location):
     """
-    Yield dictionaries of copyright data detected in the file at location.
-    Each item contains a list of copyright statements and a start and end line.
+    Yield an iterable of dictionaries of copyright data detected in the file at
+    location. Each item contains a list of copyright statements and a start and
+    end line.
     """
     from cluecode.copyrights import detect_copyrights
 
     for copyrights, _, _, _, start_line, end_line in detect_copyrights(location):
         if not copyrights:
             continue
-        yield {
-            'statements': copyrights,
-            'start_line': start_line,
-            'end_line': end_line,
-        }
+        result = OrderedDict()
+        # FIXME: we should call this copyright instead, and yield one item per statement
+        result['statements'] = copyrights
+        result['start_line'] = start_line
+        result['end_line'] = end_line
+        yield result
 
 
 DEJACODE_LICENSE_URL = 'https://enterprise.dejacode.com/license_library/Demo/{}/'
 
 
-def get_licenses(location=None):
+def get_licenses(location):
     """
-    Yield dictionaries of license data detected in the file at location for
-    each detected license.
+    Yield an iterable of dictionaries of license data detected in the file at
+    location for each detected license.
     """
     from licensedcode.models import get_license
     from licensedcode.detect import get_license_matches
 
     for match in get_license_matches(location):
         for license_key in match.rule.licenses:
-            license = get_license(license_key)
+            lic = get_license(license_key)
+            result = OrderedDict()
+            result['key'] = lic.key
+            result['short_name'] = lic.short_name
+            result['category'] = lic.category
+            result['owner'] = lic.owner
+            result['homepage_url'] = lic.homepage_url
+            result['text_url'] = lic.text_urls[0] if lic.text_urls else ''
+            result['dejacode_url'] = DEJACODE_LICENSE_URL.format(lic.key)
+            result['spdx_license_key'] = lic.spdx_license_key
+            result['spdx_url'] = lic.spdx_url
+            result['start_line'] = match.query_position.start_line
+            result['end_line'] = match.query_position.end_line
+            yield result
 
-            yield {
-                'key': license.key,
-                'short_name': license.short_name,
-                'category': license.category,
-                'owner': license.owner,
-                'homepage_url': license.homepage_url,
-                'text_url': license.text_urls[0] if license.text_urls else '',
-                'dejacode_url': DEJACODE_LICENSE_URL.format(license.key),
-                'spdx_license_key': license.spdx_license_key,
-                'spdx_url': license.spdx_url,
-                'start_line': match.query_position.start_line,
-                'end_line': match.query_position.end_line,
-            }
 
-
-def get_html_template(format):
+def get_file_infos(location):
     """
-    Given a format string corresponding to a template directory, load and return
-    the template.html file found in that directory.
+    Return a list of dictionaries of informations collected from the file or
+    directory at location.
     """
-    from jinja2 import Environment, FileSystemLoader
-    templates_dir = get_template_dir(format)
-    env = Environment(loader=FileSystemLoader(templates_dir))
-    template = env.get_template('template.html')
-    return template
+    from commoncode import fileutils
+    from commoncode import filetype
+    from commoncode.hash import sha1, md5
+    from typecode import contenttype
+
+    T = contenttype.get_type(location)
+    is_file = T.is_file
+    is_dir = T.is_dir
+    infos = OrderedDict()
+    infos['type'] = filetype.get_type(location, short=False)
+    infos['name'] = fileutils.file_name(location)
+    infos['extension'] = is_file and fileutils.file_extension(location) or ''
+    infos['date'] = is_file and filetype.get_last_modified_date(location) or None
+    infos['size'] = T.size
+    infos['sha1'] = is_file and sha1(location) or None
+    infos['md5'] = is_file and md5(location) or None
+    infos['files_count'] = is_dir and filetype.get_file_count(location) or None
+    infos['mime_type'] = is_file and T.mimetype_file or None
+    infos['file_type'] = is_file and T.filetype_file or None
+    infos['programming_language'] = is_file and T.programming_language or None
+    infos['is_binary'] = is_file and T.is_binary or None
+    infos['is_text'] = is_file and T.is_text or None
+    infos['is_archive'] = is_file and T.is_archive or None
+    infos['is_media'] = is_file and T.is_media or None
+    infos['is_source'] = is_file and T.is_source or None
+    infos['is_script'] = is_file and T.is_script or None
+    return [infos]
 
 
-def get_template_dir(format):
+def get_package_infos(location):
     """
-    Given a format string return the corresponding template directory.
+    Return a list of dictionaries of package information
+    collected from the location or an empty list.
     """
-    return join(dirname(__file__), 'templates', format)
+    from packagedcode.recognize import recognize_packaged_archives
+    package = recognize_packaged_archives(location)
+    if not package:
+        return []
+    return [package.as_dict(simple=True)]
 
-
-def as_html_app(detected_data, scanned_path, output_file):
-    """
-    Return an HTML string built from a list of results and the html-app template.
-    """
-    template = get_html_template('html-app')
-    import json
-    html_dirs = get_html_app_files_dirs(output_file)
-    if html_dirs:
-        _, assets_dir = html_dirs
-    else:
-        assets_dir= ''
-    return template.render(results=json.dumps(detected_data), 
-                           assets_dir=assets_dir,
-                           scanned_path=scanned_path)
-
-
-class HtmlAppAssetCopyWarning(Exception):
-    pass
-
-
-class HtmlAppAssetCopyError(Exception):
-    pass
-
-
-def get_html_app_files_dirs(output_file):
-    """
-    Return a tuple of (parent_dir, dir_name) directory named after the
-    `output_file` file object file_base_name (stripped from extension) and a
-    `_files` suffix Return None if output is to stdout.
-    """
-    file_name = output_file.name
-    if file_name == '<stdout>':
-        return
-    parent_dir = dirname(file_name)
-    dir_name = fileutils.file_base_name(file_name) + '_files'
-    return parent_dir, dir_name
-
-
-def create_html_app_assets(output_file):
-    """
-    Given an html-app output_file, create the corresponding `_files` directory
-    and copy the assets to this directory. The target directory is deleted if it
-    exists.
-
-    Raise HtmlAppAssetCopyWarning if the output_file is <stdout> or
-    HtmlAppAssetCopyError if the copy was not possible.
-    """
-    try:
-        assets_dir = join(get_template_dir('html-app'), 'assets')
-        tgt_dirs = get_html_app_files_dirs(output_file)
-        if not tgt_dirs:
-            raise HtmlAppAssetCopyWarning()
-        target_dir = join(*tgt_dirs)
-        if exists(target_dir):
-            fileutils.delete(target_dir)
-        fileutils.copytree(assets_dir, target_dir)
-    except HtmlAppAssetCopyWarning, w:
-        raise w
-    except Exception, e:
-        raise HtmlAppAssetCopyError(e)
-
-
-def as_html(detected_data):
-    """
-    Return an HTML string built from a list of results and the html template.
-    """
-    template = get_html_template('html')
-
-    converted = OrderedDict()
-    licenses = {}
-
-    # Create a dict keyed by location
-    for resource in detected_data:
-        location = resource['location']
-        results = []
-        if 'copyrights' in resource:
-            for entry in resource['copyrights']:
-                results.append({
-                    'start': entry['start_line'],
-                    'end': entry['end_line'],
-                    'what': 'copyright',
-                    # NOTE: we display one statement per line.
-                    'value': '\n'.join(entry['statements']),
-                })
-        if 'licenses' in resource:
-            for entry in resource['licenses']:
-                results.append({
-                    'start': entry['start_line'],
-                    'end': entry['end_line'],
-                    'what': 'license',
-                    'value': entry['key'],
-                })
-
-                if entry['key'] not in licenses:
-                    licenses[entry['key']] = entry
-
-        if results:
-            converted[location] = sorted(results, key=itemgetter('start'))
-
-        licenses = OrderedDict(sorted(licenses.items()))
-
-    return template.render(results=converted, licenses=licenses)

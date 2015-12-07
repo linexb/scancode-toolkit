@@ -1245,14 +1245,20 @@ class TestCopyrightDetection(FileBasedTesting):
         ]
         check_detection(expected, test_file)
 
+    @expectedFailure
     def test_copyright_java(self):
         test_file = self.get_test_loc('copyrights/copyright_java-java.java')
         expected = [
             u'Copyright (c) 1992-2002 by P.J. Plauger.',
         ]
-        check_detection(expected, test_file,
-                        expected_in_results=False,
-                        results_in_expected=True)
+        check_detection(expected, test_file)
+
+    def test_copyright_java_passing(self):
+        test_file = self.get_test_loc('copyrights/copyright_java-java.java')
+        expected = [
+            u'Copyright (c) 1992-2002 by P.J.',
+        ]
+        check_detection(expected, test_file)
 
     def test_copyright_jdoe(self):
         test_file = self.get_test_loc('copyrights/copyright_jdoe-copyright_c.c')
@@ -3458,6 +3464,7 @@ class TestCopyrightDetection(FileBasedTesting):
             u'Copyright (c) 2008 Mario Blattermann',
             u'Copyright (c) 2001-2004 Red Hat, Inc.',
             u'Copyright (c) 2004 Scott James Remnant',
+            # note this is not correct and severaly truncated
             u'Copyright (c) 1998-2006 by the following: Dave Ahlswede, Manuel Amador, Matt Amato, Daniel Atallah, Paul Aurich, Patrick Aussems, Anibal Avelar, Alex Badea, John Bailey, Chris Banal, Luca Barbato, Levi Bard, Kevin Barry, Derek Battams, Martin Bayard, Curtis Beattie, Dave Bell, Igor Belyi, Brian Bernas, Paul Betts, Jonas Birme, Eric Blade, Ethan Blanton, Joshua Blanton, Rainer Blessing, Herman Bloggs, David Blue, Jason Boerner, Graham Booker, Paolo Borelli, Julien Bossart, Craig Boston, Chris Boyle, Derrick J Brashear, Matt Brenneke, Jeremy Brooks, Philip Brown, Sean Burke, Thomas Butter, Andrea Canciani, Damien Carbery, Michael Carlson, Keegan Carruthers-Smith, Steve Cavilia, Julien Cegarra, Cerulean Studios, LLC',
             u'Copyright (c) 2008 Sebastien Bacher , Andreas Moog , Emilio Pozuelo Monfort and Josselin Mouette',
         ]
@@ -3869,3 +3876,70 @@ class TestCopyrightDetection(FileBasedTesting):
         expected = [
         ]
         check_detection(expected, test_file)
+
+    def test_copyright_name_and_co(self):
+        test_file = self.get_test_loc('copyrights/copyright_nnp_and_co.txt')
+        expected = [
+            u'Copyright (c) 2001, Sandra and Klaus Rennecke.',
+        ]
+        check_detection(expected, test_file)
+
+    def test_copyright_with_ascii_art(self):
+        test_file = self.get_test_loc('copyrights/copyright_with_ascii_art.txt')
+        expected = [
+            u'Copyright (c) 1996. The Regents of the University of California.',
+        ]
+        check_detection(expected, test_file)
+
+    def test_copyright_should_not_be_detected_in_pixel_data_stream(self):
+        test_file = self.get_test_loc('copyrights/copyright_pixelstream.rgb')
+        expected = []
+        check_detection(expected, test_file)
+
+    def test_copyright_should_not_contain_leading_or_trailing_colon(self):
+        test_file = self.get_test_loc('copyrights/copyright_with_colon')
+        expected = ['copyright (c) 2013 by Armin Ronacher.']
+        check_detection(expected, test_file)
+
+    @expectedFailure
+    def test_copyright_in_markup_should_not_be_truncated(self):
+        test_file = self.get_test_loc('copyrights/copyright_in_html.html')
+        expected = [u'(c) Copyright 2010 by the WTForms Team']
+        check_detection(expected, test_file)
+
+    def test_copyright_should_not_have_trailing_garbage(self):
+        test_file = self.get_test_loc('copyrights/copyright_with_trailing_words.js')
+        expected = [
+            'Copyright 2012-2015 The Dojo Foundation',
+            'Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters',
+            'Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters',
+            'Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters',
+            '(c) Varun Malhotra 2013 Source Code',
+            'Copyright 2015, MYCO',
+            'Copyright 2015, MYCO',
+            'Copyright 2013, MYCO',
+        ]
+        check_detection(expected, test_file)
+
+    def test_copyright_should_not_have_trailing_available(self):
+        test_file = self.get_test_loc('copyrights/copyright_hostapd_trailing_available.c')
+        expected = [u'Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>']
+        check_detection(expected, test_file)
+
+    @expectedFailure
+    def test_copyright_with_dots_and_all_lowercase_on_multilines(self):
+        test_lines = [u'Copyright . 2008 company name, inc.', 
+                      u'  Change: Add functions',]
+        expected = [u'Copyright . 2008 company name, inc.']
+        check_detection(expected, test_lines)
+
+    @expectedFailure
+    def test_copyright_with_dots_and_all_lowercase_on_single_line(self):
+        test_lines = [u'Copyright . 2008 foo name, inc.']
+        expected = [u'Copyright . 2008 foo name, inc.']
+        check_detection(expected, test_lines)
+
+    def test_copyright_copy_copy_by_name3(self):
+        test_lines = [u'Copyright (c) by 2007  Joachim Foerster <JOFT@gmx.de>']
+        expected = [u'Copyright (c) by 2007 Joachim Foerster <JOFT@gmx.de>']
+        check_detection(expected, test_lines)

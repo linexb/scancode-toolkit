@@ -40,12 +40,14 @@ import typecode.contenttype
 from extractcode_assert_utils import check_files
 from extractcode_assert_utils import check_size
 
+from extractcode import all_kinds
 from extractcode import archive
 from extractcode import libarchive2
 from extractcode import sevenzip
-from extractcode import ExtractErrorFailedToExtract
 from extractcode import default_kinds
-from extractcode import all_kinds
+from extractcode import ExtractErrorFailedToExtract
+from extractcode.archive import get_best_handler
+
 from commoncode.system import on_mac
 
 
@@ -128,11 +130,11 @@ class TestSmokeTest(FileBasedTesting):
         test_data = [
             ('archive/deb/adduser_3.112ubuntu1_all.deb', ['Debian package']),
             ('archive/rpm/elfinfo-1.0-1.fc9.src.rpm', ['RPM package']),
-            ('archive/ar/liby.a', ['ar archive', 'Static Library', 'Debian package']),
+            ('archive/ar/liby.a', ['ar archive', 'Static Library']),
             ('archive/tar/tarred.tar', ['Tar', 'Ruby Gem package']),
             ('archive/tbz/tarred_bzipped.tar.bz2', ['bzip2', 'Tar bzip2']),
             ('archive/tbz/tarred_bzipped.bz', ['bzip2', 'Tar bzip2']),
-            ('archive/tgz/tarred_gzipped.gz', ['Tar gzip', 'Gzip', 'Dia diagram doc']),
+            ('archive/tgz/tarred_gzipped.gz', ['Tar gzip', 'Gzip']),
         ]
 
         for test_file, expected in test_data:
@@ -144,11 +146,11 @@ class TestSmokeTest(FileBasedTesting):
         test_data = [
             ('archive/deb/adduser_3.112ubuntu1_all.deb', [(31, 'Debian package')]),
             ('archive/rpm/elfinfo-1.0-1.fc9.src.rpm', [(32, 'RPM package')]),
-            ('archive/ar/liby.a', [(31, 'Static Library'), (17, 'ar archive'), (11, 'Debian package')]),
+            ('archive/ar/liby.a', [(31, 'Static Library'), (17, 'ar archive')]),
             ('archive/tar/tarred.tar', [(29, 'Tar'), (19, 'Ruby Gem package')]),
             ('archive/tbz/tarred_bzipped.tar.bz2', [(30, 'Tar bzip2'), (29, 'bzip2')]),
             ('archive/tbz/tarred_bzipped.bz', [(29, 'bzip2'), (18, 'Tar bzip2')]),
-            ('archive/tgz/tarred_gzipped.gz', [(29, 'Gzip'), (18, 'Tar gzip'), (16, 'Dia diagram doc')]),
+            ('archive/tgz/tarred_gzipped.gz', [(29, 'Gzip'), (18, 'Tar gzip')]),
         ]
 
         for test_file, expected in test_data:
@@ -157,10 +159,25 @@ class TestSmokeTest(FileBasedTesting):
             scored = archive.score_handlers(handlers)
             assert expected == sorted([(h[0], h[1].name) for h in scored], reverse=True)
 
-    @expectedFailure
     def test_no_handler_is_selected_for_a_non_archive(self):
-        # fails because of libmagic bug: http://bugs.gw.com/view.php?id=467
+        # failed because of libmagic bug: http://bugs.gw.com/view.php?id=467
+        # passing by introducing strict flag for handlers
         test_loc = self.get_test_loc('archive/not_archive/hashfile')
+        assert [] == list(archive.get_handlers(test_loc))
+        assert None == archive.get_extractor(test_loc)
+        assert None == archive.get_extractor(test_loc, kinds=all_kinds)
+        assert not archive.should_extract(test_loc, kinds=default_kinds)
+
+    def test_no_handler_is_selected_for_a_non_archive2(self):
+        # FWIW there is a related libmagic bug: http://bugs.gw.com/view.php?id=473
+        test_loc = self.get_test_loc('archive/not_archive/wildtest.txt')
+        assert [] == list(archive.get_handlers(test_loc))
+        assert None == archive.get_extractor(test_loc)
+        assert None == archive.get_extractor(test_loc, kinds=all_kinds)
+        assert not archive.should_extract(test_loc, kinds=default_kinds)
+
+    def test_no_handler_is_selected_for_a_non_archive3(self):
+        test_loc = self.get_test_loc('archive/not_archive/savetransfer.c')
         assert [] == list(archive.get_handlers(test_loc))
         assert None == archive.get_extractor(test_loc)
         assert None == archive.get_extractor(test_loc, kinds=all_kinds)
@@ -707,11 +724,25 @@ class TestZip(BaseArchiveTestCase):
     def test_extract_zip_java_jar(self):
         test_file = self.get_test_loc('archive/zip/jar/simple.jar')
         test_dir = self.get_temp_dir()
-
         archive.extract_zip(test_file, test_dir)
-        result = os.path.join(test_dir,
-            'org/jvnet/glassfish/comms/sipagent/transport/SocketTransportListenerManager.class')
-        assert os.path.exists(result)
+        extracted = self.collect_extracted_path(test_dir)
+        expected = [
+            '/META-INF/',
+            '/META-INF/MANIFEST.MF',
+            '/org/',
+            '/org/jvnet/',
+            '/org/jvnet/glassfish/',
+            '/org/jvnet/glassfish/comms/',
+            '/org/jvnet/glassfish/comms/sipagent/',
+            '/org/jvnet/glassfish/comms/sipagent/actions/',
+            '/org/jvnet/glassfish/comms/sipagent/actions/Bundle.properties',
+            '/org/jvnet/glassfish/comms/sipagent/actions/SipAgentCookieAction.class',
+            '/org/jvnet/glassfish/comms/sipagent/actions/bd.png',
+            '/org/jvnet/glassfish/comms/sipagent/actions/bd24.png',
+            '/org/jvnet/glassfish/comms/sipagent/org-jvnet-glassfish-comms-sipagent-actions-SipAgentCookieAction.instance',
+            '/org/jvnet/glassfish/comms/sipagent/org-jvnet-glassfish-comms-sipagent-actions-SipAgentCookieAction_1.instance'
+        ]
+        assert sorted(expected) == sorted(extracted)
 
     def test_extract_zip_with_duplicated_lowercase_paths(self):
         test_file = self.get_test_loc('archive/zip/dup_names.zip')
@@ -772,6 +803,21 @@ class TestZip(BaseArchiveTestCase):
         result = os.path.join(test_dir, 'src/Boo.Lang.Compiler'
                                 '/TypeSystem/InternalCallableType.cs')
         assert os.path.exists(result)
+
+    def test_get_best_handler_nuget_is_selected_over_zip(self):
+        test_file = self.get_test_loc('archive/zip/moq.4.2.1507.118.nupkg')
+        handler = get_best_handler(test_file)
+        assert archive.NugetHandler == handler
+
+    def test_get_best_handler_nuget_is_selected_over_zip2(self):
+        test_file = self.get_test_loc('archive/zip/exceptionhero.javascript.1.0.5.nupkg')
+        handler = get_best_handler(test_file)
+        assert archive.NugetHandler == handler
+
+    def test_get_best_handler_nuget_is_selected_over_zip3(self):
+        test_file = self.get_test_loc('archive/zip/javascript-fastclass.1.1.729.121805.nupkg')
+        handler = get_best_handler(test_file)
+        assert archive.NugetHandler == handler
 
 
 class TestLibarch(BaseArchiveTestCase):
@@ -1448,8 +1494,8 @@ class TestRar(BaseArchiveTestCase):
         self.assertRaisesInstance(expected, archive.extract_rar, test_file, test_dir)
 
     def test_extract_rar_with_relative_path(self):
-        # FIXME: this file may not have relative paths
-        test_file = self.get_test_loc('archive/rar/rar_relative.rar')
+        # FIXME: this file may not have a real relative path
+        test_file = self.get_test_loc('archive/rar/rar_relative.rar', copy=True)
         test_dir = self.get_temp_dir()
         archive.extract_rar(test_file, test_dir)
         result = os.path.abspath(test_file + '/../a_parent_folder.txt')
@@ -1462,9 +1508,9 @@ class TestRar(BaseArchiveTestCase):
         assert os.path.exists(result)
 
     def test_extract_rar_with_absolute_path(self):
-        # FIXME: this file may not have absolute paths
+        # FIXME: this file may not have a real absolute path
         assert not os.path.exists('/home/li/Desktop/zip_folder')
-        test_file = self.get_test_loc('archive/rar/rar_absolute.rar')
+        test_file = self.get_test_loc('archive/rar/rar_absolute.rar', copy=True)
         test_dir = self.get_temp_dir()
         archive.extract_rar(test_file, test_dir)
         assert not os.path.exists('/home/li/Desktop/absolute_folder')
@@ -1581,13 +1627,18 @@ class TestSevenZip(BaseArchiveTestCase):
 
 class TestIso(BaseArchiveTestCase):
     def test_extract_iso_basic(self):
-        test_file = self.get_test_loc('archive/iso/fdbasecd.iso')
+        test_file = self.get_test_loc('archive/iso/small.iso')
         test_dir = self.get_temp_dir()
         archive.extract_iso(test_file, test_dir)
-        result = os.path.join(test_dir, 'autorun.inf')
-        assert os.path.exists(result)
-        result = os.path.join(test_dir, 'freedos/packages/base.end')
-        assert os.path.exists(result)
+        extracted = self.collect_extracted_path(test_dir)
+        expected = [
+            '/ChangeLog', 
+            '/ChangeLog (copy)', 
+            '/freebase.ABOUT', 
+            '/this/', 
+            '/this/that'
+        ]
+        assert sorted(expected) == sorted(extracted)
 
     def test_get_extractor_not_iso_text_is_not_mistaken_for_an_iso_image(self):
         test_file = self.get_test_loc('archive/iso/ChangeLog')
