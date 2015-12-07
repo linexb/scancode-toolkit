@@ -202,43 +202,6 @@ class FileDrivenTesting(object):
                             for file_loc in files if file_loc.endswith('~')])
 
 
-    def __extract(self, test_path, extract_func=None, verbatim=False):
-        """
-        Given an archive file identified by test_path relative
-        to a test files directory, return a new temp directory where the
-        archive file has been extracted using extract_func.
-        """
-        assert test_path and test_path != ''
-        test_path = to_os_native_path(test_path)
-        target_path = os.path.basename(test_path)
-        target_dir = self.get_temp_dir(target_path)
-        origin_archive = self.get_test_loc(test_path)
-        extract_func(origin_archive, target_dir, verbatim)
-        return target_dir
-
-    def extract_test_zip(self, test_path):
-        return self.__extract(test_path, extract_zip)
-
-    def extract_test_tar(self, test_path, verbatim=False):
-        return self.__extract(test_path, extract_tar, verbatim)
-
-
-def extract_tar(location, target_dir, verbatim=False):
-    """
-    Extract a tar archive at location in the target_dir directory.
-    """
-    with open(location, 'rb') as input_tar:
-        tar = tarfile.open(fileobj=input_tar)
-        tarinfos = tar.getmembers()
-        to_extract = []
-        for tarinfo in tarinfos:
-            if tar_can_extract(tarinfo, verbatim):
-                if not verbatim:
-                    tarinfo.mode = 0700
-                to_extract.append(tarinfo)
-        tar.extractall(target_dir, members=to_extract)
-
-
 class FileBasedTesting(EnhancedAssertions, FileDrivenTesting):
 
     def as_line_list(self, list_or_file, sort=False, skip_firstline=False):
@@ -274,6 +237,42 @@ class FileBasedTesting(EnhancedAssertions, FileDrivenTesting):
         self.failUnlessEqual(expected, result, msg)
 
     assertLinesEqual = failUnlessFilesLinesEqual
+
+    def __extract(self, test_path, extract_func=None, verbatim=False):
+        """
+        Given an archive file identified by test_path relative
+        to a test files directory, return a new temp directory where the
+        archive file has been extracted using extract_func.
+        """
+        assert test_path and test_path != ''
+        test_path = to_os_native_path(test_path)
+        target_path = os.path.basename(test_path)
+        target_dir = self.get_temp_dir(target_path)
+        origin_archive = self.get_test_loc(test_path)
+        extract_func(origin_archive, target_dir, verbatim)
+        return target_dir
+
+    def extract_test_zip(self, test_path):
+        return self.__extract(test_path, extract_zip)
+
+    def extract_test_tar(self, test_path, verbatim=False):
+        return self.__extract(test_path, extract_tar, verbatim)
+
+
+def extract_tar(location, target_dir, verbatim=False):
+    """
+    Extract a tar archive at location in the target_dir directory.
+    """
+    with open(location, 'rb') as input_tar:
+        tar = tarfile.open(fileobj=input_tar)
+        tarinfos = tar.getmembers()
+        to_extract = []
+        for tarinfo in tarinfos:
+            if tar_can_extract(tarinfo, verbatim):
+                if not verbatim:
+                    tarinfo.mode = 0700
+                to_extract.append(tarinfo)
+        tar.extractall(target_dir, members=to_extract)
 
 
 def tar_can_extract(tarinfo, verbatim):
