@@ -50,13 +50,10 @@ if not exist "c:\python27\python.exe" (
     echo(
     echo    https://www.python.org/ftp/python/2.7.10/python-2.7.10.msi
     echo(
-    exit /b 1
+    goto EOS
 )
 
 call c:\python27\python.exe etc/configure.py %SCANCODE_CLI_ARGS%
-if %errorlevel% neq 0 (
-    exit /b %errorlevel%
-)
 if exist bin\activate (
     bin\activate
 )
