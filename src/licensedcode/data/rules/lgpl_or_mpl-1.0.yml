@@ -2,4 +2,4 @@ licenses:
     - lgpl
     - mpl-1.0
 license_choice: yes
-template: yes
+notes: Dual license of lgpl and mpl 1.0

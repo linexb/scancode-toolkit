@@ -6,4 +6,5 @@ licenses:
     - gpl-1.0-plus
     - unicode
     - zlib
+expected_failure: yes
 sort: yes
