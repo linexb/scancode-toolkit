@@ -35,7 +35,6 @@ from commoncode.fileutils import as_posixpath
 from commoncode.testcase import FileDrivenTesting
 
 from scancode import cli
-from collections import OrderedDict
 
 
 test_env = FileDrivenTesting()
@@ -48,12 +47,9 @@ the actual command outputs as if using a TTY or not.
 """
 
 
-def check_scan_json(expected_file, result_file, test_dir, regen=False):
-    result = _load_json_result(result_file, test_dir)
-    if regen:
-        with open(expected_file, 'wb') as reg:
-            json.dump(result, reg, indent=2)
-    expected = _load_json_result(expected_file, test_dir)
+def check_scan_json(expected_file, result_file, test_dir):
+    result = _load_json_result(expected_file, test_dir)
+    expected = _load_json_result(result_file, test_dir)
     assert expected == result
 
 
@@ -65,13 +61,12 @@ def _load_json_result(result_file, test_dir):
     """
     test_dir = as_posixpath(test_dir)
     with codecs.open(result_file, encoding='utf-8') as res:
-        scan_result = json.load(res, object_pairs_hook=OrderedDict)
+        scan_result = json.load(res)
     for result in scan_result['results']:
         loc = result['location']
         loc = as_posixpath(loc).replace(test_dir, '').strip('/')
         result['location'] = loc
-    if scan_result.get('scancode_version'):
-        del scan_result['scancode_version']
+    del scan_result['scancode_version']
     scan_result['results'].sort(key=lambda x: x['location'])
     return scan_result
 
@@ -153,7 +148,7 @@ def test_info_collect_infos(monkeypatch):
     result = runner.invoke(cli.scancode, ['--info', test_dir, result_file])
     assert result.exit_code == 0
     assert 'Scanning done' in result.output
-    check_scan_json(test_env.get_test_loc('info/basic.expected.json'),
+    check_scan_json(test_env.get_test_loc('info/basic.expected.json'), 
                     result_file,
                     test_dir)
 
@@ -166,7 +161,7 @@ def test_info_license_copyrights(monkeypatch):
     result = runner.invoke(cli.scancode, ['--info', '--license', '--copyright', test_dir, result_file])
     assert result.exit_code == 0
     assert 'Scanning done' in result.output
-    check_scan_json(test_env.get_test_loc('info/all.expected.json'),
+    check_scan_json(test_env.get_test_loc('info/all.expected.json'), 
                     result_file,
                     test_dir)
 
