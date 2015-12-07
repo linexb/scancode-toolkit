@@ -1,3 +1,4 @@
 licenses:
     - bsd-simplified
 expected_failure: yes
+sort: true

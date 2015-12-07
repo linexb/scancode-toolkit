@@ -4,4 +4,4 @@ licenses:
     - lgpl
     - net-snmp
 expected_failure: yes
-sort: yes
+sort: true

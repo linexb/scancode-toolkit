@@ -6,4 +6,5 @@ licenses:
     - lilo
     - bzip2-libbzip-1.0.5
     - bzip2-libbzip-1.0.5
-sort: yes
+
+sort: true
