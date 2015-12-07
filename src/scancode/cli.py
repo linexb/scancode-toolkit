@@ -221,7 +221,6 @@ formats = ['json', 'html', 'html-app']
 @click.option('-f', '--format', is_flag=False, default='json', show_default=True, metavar='<style>', type=click.Choice(formats),
               help='Set <output_file> format <style> to one of: %s' % ' or '.join(formats),)
 @click.option('--verbose', is_flag=True, default=False, help='Print verbose file-by-file progress messages.')
-@click.option('--quiet', is_flag=True, default=False, help='Do not print any progress message.')
 
 @click.help_option('-h', '--help')
 @click.option('--examples', is_flag=True, is_eager=True, callback=print_examples, help=('Show command examples and exit.'))
@@ -229,30 +228,30 @@ formats = ['json', 'html', 'html-app']
 @click.option('--version', is_flag=True, is_eager=True, callback=print_version, help='Show the version and exit.')
 
 def scancode(ctx, input, output_file, copyright, license, package,  # @ReservedAssignment
-             info, format, verbose, quiet, *args, **kwargs):  # @ReservedAssignment
+             info, format, verbose, *args, **kwargs):  # @ReservedAssignment
     """scan the <input> file or directory for origin and license and save results to the <output_file>.
 
     The scan results are printed on terminal if <output_file> is not provided.
     """
-    possible_scans = [copyright, license, package, info]
-    # Default scan when no options is provided
-    if not any(possible_scans):
-        copyright = True  # @ReservedAssignment
-        license = True  # @ReservedAssignment
-        package = True
-
-    results = scan(input, copyright, license, package, info, verbose, quiet)
+    results = do_scan(input, copyright, license, package, info, format, verbose, quiet=False)
     save_results(results, format, input, output_file)
 
 
-def scan(input_path, copyright=True, license=True, package=True,  # @ReservedAssignment
-         info=True, verbose=False, quiet=False):  # @ReservedAssignment
+def do_scan(input_path, copyright, license, package,  # @ReservedAssignment
+            info, format, verbose, quiet):  # @ReservedAssignment
     """
     Do the scans proper, return results.
     """
     # save paths to report paths relative to the original input
     original_input = fileutils.as_posixpath(input_path)
     abs_input = fileutils.as_posixpath(os.path.abspath(os.path.expanduser(input_path)))
+
+    possible_scans = [copyright, license, package, info]
+    # Default scan when no options is provided
+    if not any(possible_scans):
+        copyright = True  # @ReservedAssignment
+        license = True  # @ReservedAssignment
+        package = True
 
     # note: "flag and function" expressions return the function if flag is True
     scanners = {
@@ -304,11 +303,9 @@ def scan(input_path, copyright=True, license=True, package=True,  # @ReservedAss
 
         for resource in progressive_resources:
             res = fileutils.as_posixpath(resource)
-
-            # fix paths: keep the location as relative to the original input
+            # keep the location as relative to the original input
             relative_path = utils.get_relative_path(original_input, abs_input, res)
             scan_result = OrderedDict(location=relative_path)
-            # Should we yield instead?
             scan_result.update(scan_one(res, scanners))
             results.append(scan_result)
 
@@ -321,7 +318,7 @@ def scan(input_path, copyright=True, license=True, package=True,  # @ReservedAss
 def scan_one(input_file, scans):
     """
     Scan one file or directory and return scanned data, calling every scan in
-    the `scans` mapping of (scan name -> scan function).
+    the scans mapping of (scan name -> scan function).
     """
     data = OrderedDict()
     for scan_name, scan_func in scans.items():

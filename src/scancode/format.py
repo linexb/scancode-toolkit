@@ -33,11 +33,6 @@ from os.path import join
 from commoncode import fileutils
 
 
-"""
-Format scans outputs.
-"""
-
-
 def get_html_template(format):  # @ReservedAssignment
     """
     Given a format string corresponding to a template directory, load and return
