@@ -32,7 +32,7 @@ Main scanning functions.
 Note: this API is unstable and still evolving.
 """
 
-def extract_archives(location, recurse=True):
+def extract_archives(location):
     """
     Extract recursively any archives found at location and yield an iterable of
     ExtractEvents.
@@ -43,7 +43,7 @@ def extract_archives(location, recurse=True):
     from extractcode.extract import extract
     from extractcode import default_kinds
 
-    for xevent in extract(location, kinds=default_kinds, recurse=recurse):
+    for xevent in extract(location, kinds=default_kinds, recurse=True):
         yield xevent
 
 
