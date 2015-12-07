@@ -6,4 +6,5 @@ licenses:
     - epl-1.0
     - lzma-cpl-exception
     - zlib
+expected_failure: yes
 sort: true
