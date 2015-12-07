@@ -1,5 +1,2 @@
 licenses:
-    - lgpl-2.1
-    - cpl-1.0
-    - lzma-sdk-2006-exception
-license_choice: yes
+    - lzma-sdk-original
