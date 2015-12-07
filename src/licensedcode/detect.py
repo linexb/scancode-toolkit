@@ -81,8 +81,7 @@ _LICENSES_INDEX = None
 
 def get_index():
     """
-    Return the index from a loaded index if loaded or from building and loading
-    from files.
+    Return the index from a loaded index if loaded or from building and loading from files.
     """
     global _LICENSES_INDEX
     if not _LICENSES_INDEX:
@@ -112,7 +111,7 @@ def get_license_index(rules=None):
 class LicenseIndex(object):
     """
     A license detection Index.
-    This holds an Index and loaded Rules.
+    This holds and Index and loaded Rules.
     """
     def __init__(self, rules):
         """
