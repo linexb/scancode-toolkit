@@ -40,3 +40,14 @@ addopts =
     --ignore docs/conf.py
     --ignore setup.py
     --doctest-modules
+
+# addopts =
+#     -rfEsxX
+#     --strict
+#     -s
+#     -vv
+#     --ignore docs/conf.py
+#     --ignore setup.py
+#     --doctest-modules
+#     --doctest-glob \*.rst
+#     
