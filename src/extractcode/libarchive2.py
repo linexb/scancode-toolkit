@@ -193,7 +193,7 @@ class Archive(object):
         assert self.archive_struct, 'Archive must be used as a context manager.'
         entry_struct = new_entry()
         try:
-            while 1:
+            while True:
                 try:
                     r = next_entry(self.archive_struct, entry_struct)
                     if r == ARCHIVE_EOF:
