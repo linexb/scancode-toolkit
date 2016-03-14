@@ -307,9 +307,8 @@ def scan(input_path,processes, copyright=True, license=True, package=True,  # @R
                                quiet=quiet
                                ) as progressive_resources:
         pool = Pool(processes=processes)
-        tmp = []
-        scan_results = {} 
-        proc_results = {}
+        scan_results = [] 
+        proc_results = []
         count = 0
         for resource in progressive_resources:
             res = fileutils.as_posixpath(resource)
@@ -318,15 +317,13 @@ def scan(input_path,processes, copyright=True, license=True, package=True,  # @R
             relative_path = utils.get_relative_path(original_input, abs_input, res)
             scan_result = OrderedDict(location=relative_path)
             # Should we yield instead?
-            # storing the scan_result in a dictionary to call the update() later after calling the get() function from all the processes
-            scan_results[count] = scan_result
+            # storing the scan_result in a list to call the update() later after calling the get() function from all the processes
+            scan_results.append(scan_result)
             # storing the results from multiple processes to call the get() later
-            proc_results[count] = pool.apply_async(scan_one, args=(res, scanners,)) 
-            count = count + 1
+            proc_results.append(pool.apply_async(scan_one, args=(res, scanners,))) 
         pool.close()
         pool.join()
-        for i in range(count):
-            assert proc_results[i].ready()
+        for i in range(len(scan_results)):
             scan_results[i].update(proc_results[i].get())
             results.append(scan_results[i])
     # TODO: eventually merge scans for the same resource location...
